@@ -1,11 +1,268 @@
+/* ===== PART 01 / 16 : START ===== */
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Colorful Custom Hand AI Project (fcAI)</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no" />
 
-<!-- ===== TensorFlow.js ===== -->
+<title>Colorful Custom Hand AI Project</title>
+
+<!-- ====== Core Styles ====== -->
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  color: #fff;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow: hidden;
+}
+
+/* ====== App Frame ====== */
+#appRoot {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+}
+
+/* ====== Header ====== */
+#titleBar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: #111;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  z-index: 20;
+  box-sizing: border-box;
+}
+
+#titleStack {
+  flex: 1;
+}
+
+#titleStack .t1 {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+#titleStack .t2 {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+/* ====== Menu Button ====== */
+#menuToggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #222;
+  color: #fff;
+  border: none;
+  font-size: 20px;
+}
+
+/* ====== Menu Panel ====== */
+#menuPanel {
+  position: fixed;
+  top: 56px;
+  right: 0;
+  width: 280px;
+  max-height: calc(100vh - 56px);
+  background: #1a1a1a;
+  overflow-y: auto;
+  z-index: 30;
+  box-shadow: -4px 0 12px rgba(0,0,0,0.5);
+}
+
+#menuPanel.hidden {
+  display: none;
+}
+
+.menu-section {
+  padding: 12px;
+  border-bottom: 1px solid #333;
+}
+
+.menu-section h3 {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ====== Camera Layer ====== */
+#cameraLayer {
+  position: absolute;
+  top: 56px;
+  left: 0;
+  right: 0;
+  bottom: 120px;
+  background: #000;
+  overflow: hidden;
+}
+
+#video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ====== Hand Layer ====== */
+#handLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* All hand images initially hidden */
+.handPose {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 90vmin;
+  max-height: 90vmin;
+  opacity: 0.35; /* ← 薄め指定（後続で微調整） */
+  display: none;
+}
+
+/* ====== Status Area ====== */
+#statusArea {
+  position: fixed;
+  bottom: 64px;
+  left: 0;
+  right: 0;
+  padding: 6px 10px;
+  font-size: 14px;
+  background: rgba(0,0,0,0.65);
+  z-index: 15;
+}
+
+/* ====== Controls ====== */
+#controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #111;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  z-index: 20;
+}
+
+#controls button {
+  background: #eee;
+  color: #000;
+  border: none;
+  padding: 8px 4px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+/* ====== Debug HUD ====== */
+#debugHud {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  max-height: 60vh;
+  background: rgba(0,0,0,0.9);
+  color: #0f0;
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  z-index: 40;
+  display: none;
+}
+
+</style>
+
+<!-- ====== External Libraries (loaded later in PART 02) ====== -->
+
+</head>
+
+<body>
+<div id="appRoot">
+
+  <!-- ===== Header ===== -->
+  <div id="titleBar">
+    <div id="titleStack">
+      <div class="t1">Colorful Custom Hand AI Project</div>
+      <div class="t2">fcAI + DIY Mode</div>
+    </div>
+    <button id="menuToggle">☰</button>
+  </div>
+
+  <!-- ===== Menu Panel ===== -->
+  <div id="menuPanel" class="hidden">
+    <!-- menu contents injected later -->
+  </div>
+
+  <!-- ===== Camera & Overlay ===== -->
+  <div id="cameraLayer">
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="overlay"></canvas>
+
+    <!-- ===== Hand Images ===== -->
+    <div id="handLayer">
+      <!-- filenames are FINAL per your instruction -->
+      <img id="handRelaxed" class="handPose" src="hand_relaxed.png" />
+      <img id="handPhone"   class="handPose" src="hand_phone.png" />
+      <img id="handPen"     class="handPose" src="hand_pen.png" />
+      <img id="handKey"     class="handPose" src="hand_key.png" />
+      <img id="handEgg"     class="handPose" src="hand_egg.png" />
+      <img id="handSalute"  class="handPose" src="hand_salute.png" />
+    </div>
+  </div>
+
+  <!-- ===== Status ===== -->
+  <div id="statusArea">
+    <div id="status">Booting...</div>
+    <div id="result">State: RELAXED</div>
+  </div>
+
+  <!-- ===== Controls ===== -->
+  <div id="controls">
+    <button id="startCamBtn">Start Camera</button>
+    <button id="lockBtn">Lock</button>
+    <button id="miniOpenBtn">Mini-Open</button>
+    <button id="relaxBtn">Relax</button>
+
+    <button id="simEggBtn">EGG</button>
+    <button id="simPenBtn">PEN</button>
+    <button id="simPhoneBtn">PHONE</button>
+    <button id="simKeyBtn">KEY</button>
+    <button id="simSaluteBtn">SALUTE</button>
+  </div>
+
+  <!-- ===== Debug HUD ===== -->
+  <div id="debugHud">
+    <pre id="debugText"></pre>
+  </div>
+
+</div>
+/* ===== PART 01 / 16 : END ===== */
+  /* ===== PART 02 / 16 : START ===== */
+
+<!-- ====== External Libraries ====== -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
@@ -15,500 +272,418 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
 
-<style>
-body {
-  margin:0;
-  background:#111;
-  color:#fff;
-  font-family:Arial, sans-serif;
-  -webkit-user-select:none;
-  user-select:none;
-}
-
-/* ===== video / canvas ===== */
-#videoWrapper {
-  position: relative;
-  width:100%;
-  max-width:420px;
-  margin:0 auto;
-  aspect-ratio:3/4;
-  background:#000;
-}
-#video {
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  opacity:0;
-}
-#renderCanvas {
-  position:absolute;
-  inset:0;
-  z-index:2;
-}
-
-/* ===== Hand PNG Overlay ===== */
-#handImageLayer {
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  z-index:5;
-}
-.hand-img {
-  position:absolute;
-  left:50%;
-  top:50%;
-  transform:translate(-50%,-50%);
-  width:70vmin;
-  max-width:420px;
-  opacity:0.30;      /* ← かなり薄め */
-  display:none;
-}
-.hand-img.active {
-  display:block;
-}
-
-/* ===== SVG overlay 無効化（削除しない） ===== */
-#overlaySvg {
-  display:none !important;
-}
-
-/* ===== HUD ===== */
-#overlayHud {
-  fill:#fff;
-  font-size:12px;
-}
-
-/* ===== buttons ===== */
-#controlPanel {
-  text-align:center;
-  margin-top:10px;
-}
-.sim-btn, button {
-  margin:4px;
-  padding:8px 12px;
-  border-radius:10px;
-  border:none;
-  background:#444;
-  color:#fff;
-}
-
-/* ===== DEBUG HUD ===== */
-#debugHud {
-  position:fixed;
-  top:8px;
-  left:8px;
-  width:min(520px,calc(100vw - 16px));
-  background:rgba(0,0,0,0.65);
-  border-radius:10px;
-  display:none;
-  z-index:9999;
-}
-</style>
-</head>
-<body>
-
-<!-- ===== DEBUG HUD ===== -->
-<div id="debugHud">
-  <pre id="debugText">booting...</pre>
-</div>
-
-<!-- ===== TOP ===== -->
-<header id="topHeader">
-  <div style="padding:8px">
-    <h1 style="font-size:16px;margin:0">Colorful Custom Hand AI Project</h1>
-  </div>
-</header>
-
-<!-- ===== APP ===== -->
-<div id="appContainer">
-
-  <div id="videoWrapper">
-
-    <!-- camera -->
-    <video id="video" autoplay playsinline></video>
-    <canvas id="renderCanvas"></canvas>
-
-    <!-- ===== Hand PNG overlay ===== -->
-    <div id="handImageLayer">
-
-      <!-- RELAX / OPEN -->
-      <img id="img-open"
-        class="hand-img active"
-        src="hand_open.png"
-        alt="open hand" />
-
-      <!-- PHONE -->
-      <img id="img-phone"
-        class="hand-img"
-        src="hand_hold.png"
-        alt="phone hold" />
-
-      <!-- PEN -->
-      <img id="img-pen"
-        class="hand-img"
-        src="hand_pen.png"
-        alt="pen hold" />
-
-      <!-- KEY -->
-      <img id="img-key"
-        class="hand-img"
-        src="hand_key.png"
-        alt="key pinch" />
-
-      <!-- EGG -->
-      <img id="img-egg"
-        class="hand-img"
-        src="hand_egg.png"
-        alt="egg grip" />
-
-      <!-- SALUTE -->
-      <img id="img-salute"
-        class="hand-img"
-        src="hand_salute.png"
-        alt="salute" />
-    </div>
-
-    <!-- ===== SVG (残す・非表示) ===== -->
-    <svg id="overlaySvg"
-      viewBox="0 0 220 220"
-      preserveAspectRatio="xMidYMid meet">
-      <text id="overlayHud" x="110" y="210" text-anchor="middle">
-        booting
-      </text>
-    </svg>
-
-  </div>
-
-  <!-- ===== RESULT ===== -->
-  <div id="resultArea" style="text-align:center;margin-top:8px">
-    <div id="result">State: RELAXED</div>
-    <div id="status">booting...</div>
-  </div>
-
-  <!-- ===== CONTROLS ===== -->
-  <div id="controlPanel">
-
-    <button id="startCameraBtn">Start Camera</button>
-    <br/>
-
-    <button id="simEgg" class="sim-btn">EGG</button>
-    <button id="simPen" class="sim-btn">Pen</button>
-    <button id="simPhone" class="sim-btn">Phone</button>
-    <button id="simKey" class="sim-btn">Key</button>
-    <button id="simSalute" class="sim-btn">Salute</button>
-
-    <br/>
-
-    <button id="miniOpenBtn">Mini-Open</button>
-    <button id="lockBtn">Lock</button>
-    <button id="relaxBtn">Full Relax</button>
-
-  </div>
-
-</div>
 <script>
 (() => {
-
-  // ======== DOM references ========
+  /* ========= DOM ========= */
   const video        = document.getElementById('video');
-  const renderCanvas = document.getElementById('renderCanvas');
-  const renderCtx    = renderCanvas.getContext('2d');
+  const overlay      = document.getElementById('overlay');
+  const overlayCtx   = overlay.getContext('2d');
 
-  const resultEl     = document.getElementById('result');
+  const menuToggle   = document.getElementById('menuToggle');
+  const menuPanel    = document.getElementById('menuPanel');
+
   const statusEl     = document.getElementById('status');
-  const hudText      = document.getElementById('overlayHud');
+  const resultEl     = document.getElementById('result');
 
-  const simEggBtn    = document.getElementById('simEgg');
-  const simPenBtn    = document.getElementById('simPen');
-  const simPhoneBtn  = document.getElementById('simPhone');
-  const simKeyBtn    = document.getElementById('simKey');
-  const simSaluteBtn = document.getElementById('simSalute');
+  const debugHud     = document.getElementById('debugHud');
+  const debugText    = document.getElementById('debugText');
 
-  const miniOpenBtn  = document.getElementById('miniOpenBtn');
+  const startCamBtn  = document.getElementById('startCamBtn');
   const lockBtn      = document.getElementById('lockBtn');
+  const miniOpenBtn  = document.getElementById('miniOpenBtn');
   const relaxBtn     = document.getElementById('relaxBtn');
-  const startCamBtn  = document.getElementById('startCameraBtn');
 
-  // ======== State ========
-  let model = null;
+  const simEggBtn    = document.getElementById('simEggBtn');
+  const simPenBtn    = document.getElementById('simPenBtn');
+  const simPhoneBtn  = document.getElementById('simPhoneBtn');
+  const simKeyBtn    = document.getElementById('simKeyBtn');
+  const simSaluteBtn = document.getElementById('simSaluteBtn');
+
+  /* ========= Hand Images ========= */
+  const handImgs = {
+    none   : document.getElementById('handRelaxed'),
+    phone  : document.getElementById('handPhone'),
+    pen    : document.getElementById('handPen'),
+    key    : document.getElementById('handKey'),
+    egg    : document.getElementById('handEgg'),
+    salute : document.getElementById('handSalute')
+  };
+
+  const allHandImgs = Object.values(handImgs);
+
+  function showHand(name) {
+    allHandImgs.forEach(img => img.style.display = 'none');
+    const t = handImgs[name] || handImgs.none;
+    if (t) t.style.display = 'block';
+  }
+
+  showHand('none'); // initial relaxed
+
+  /* ========= State ========= */
   let stream = null;
+  let model = null;
 
   let detectRunning = false;
-  let drawRunning = false;
-
   let lockActive = false;
-  let currentGroup = 'none';
 
-  let lastGroups = [];
   let freezeUntil = 0;
-  let freezeGroup = 'none';
-  let freezeBoxes = [];
+  let lastGroup = 'none';
 
-  let demoUntil = 0;
+  /* ========= UI ========= */
+  menuToggle.addEventListener('click', () => {
+    menuPanel.classList.toggle('hidden');
+  });
 
-  let latestObjects = [];
-  let latestHudLine = 'booting';
-
-  // ======== FPS ========
-  let drawFrameCount = 0;
-  let drawFps = 0;
-  let drawFpsT0 = performance.now();
-
-  let detectCount = 0;
-  let detectFps = 0;
-  let detectFpsT0 = performance.now();
-
-  // ======== Helpers ========
-  function activateHand(group) {
-    currentGroup = group;
-    // ★ PNG切替は PART5 で追加
+  function logHUD(msg) {
+    debugText.textContent = msg;
   }
 
-  function getFreezeDurationMs() {
-    return 5000; // ← あなた指定：5秒
-  }
+  statusEl.textContent = 'Booting...';
 
-  function resizeRenderCanvas() {
+  /* ========= Helpers ========= */
+  function resizeOverlay() {
     const dpr = window.devicePixelRatio || 1;
-    const w = renderCanvas.clientWidth * dpr;
-    const h = renderCanvas.clientHeight * dpr;
-    if (renderCanvas.width !== w || renderCanvas.height !== h) {
-      renderCanvas.width = w;
-      renderCanvas.height = h;
-    }
-    renderCtx.setTransform(dpr,0,0,dpr,0,0);
+    const w = overlay.clientWidth;
+    const h = overlay.clientHeight;
+    overlay.width  = Math.floor(w * dpr);
+    overlay.height = Math.floor(h * dpr);
+    overlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function drawLoop() {
-    requestAnimationFrame(drawLoop);
+  window.addEventListener('resize', resizeOverlay);
 
-    drawFrameCount++;
-    const now = performance.now();
-    if (now - drawFpsT0 > 1000) {
-      drawFps = drawFrameCount;
-      drawFrameCount = 0;
-      drawFpsT0 = now;
-    }
-
-    if (!video.videoWidth) return;
-
-    resizeRenderCanvas();
-    renderCtx.clearRect(0,0,renderCanvas.width,renderCanvas.height);
-    renderCtx.drawImage(video,0,0,renderCanvas.clientWidth,renderCanvas.clientHeight);
-
-    hudText.textContent = latestHudLine;
-  }
-  // ======== Load model ========
-  async function loadModelIfNeeded() {
-    if (model) return;
+  /* ========= Model Load ========= */
+  async function loadModel() {
+    if (model) return model;
     statusEl.textContent = 'Loading COCO-SSD...';
+    try {
+      if (tf.getBackend() !== 'webgl') {
+        await tf.setBackend('webgl');
+      }
+    } catch(e) {
+      try { await tf.setBackend('cpu'); } catch(_) {}
+    }
     model = await cocoSsd.load();
     statusEl.textContent = 'Model loaded.';
-    latestHudLine = 'COCO-SSD loaded';
+    return model;
   }
 
-  // ======== Detection Loop ========
-  async function runDetectionLoop() {
-    if (!detectRunning) return;
+/* ===== PART 02 / 16 : END ===== */
+ /* ===== PART 03 / 16 : START ===== */
 
-    const loop = async () => {
-      if (!detectRunning) return;
-
-      const now = performance.now();
-
-      if (lockActive) {
-        latestHudLine = 'Locked';
-        setTimeout(loop, 200);
-        return;
-      }
-
-      if (now < freezeUntil) {
-        latestHudLine = 'Auto freeze';
-        setTimeout(loop, 200);
-        return;
-      }
-
-      if (!model || !video.videoWidth) {
-        setTimeout(loop, 200);
-        return;
-      }
-
-      try {
-        const predictions = await model.detect(video);
-
-        detectCount++;
-        const t = performance.now();
-        if (t - detectFpsT0 > 1000) {
-          detectFps = detectCount;
-          detectCount = 0;
-          detectFpsT0 = t;
-        }
-
-        let dominant = 'none';
-        let bestScore = 0;
-
-        predictions.forEach(p => {
-          if (p.score < 0.3) return;
-
-          const c = p.class.toLowerCase();
-          let g = 'none';
-
-          if (c === 'cell phone') g = 'phone';
-          else if (['scissors','toothbrush','fork','knife','spoon'].includes(c)) g = 'pen';
-          else if (['remote','apple','banana','orange','clock'].includes(c)) g = 'egg';
-          else if (['umbrella','baseball bat'].includes(c)) g = 'key';
-
-          if (g !== 'none' && p.score > bestScore) {
-            bestScore = p.score;
-            dominant = g;
-          }
-        });
-
-        activateHand(dominant);
-        lastGroups.push(dominant);
-        if (lastGroups.length > 5) lastGroups.shift();
-
-        resultEl.textContent =
-          dominant === 'none'
-            ? 'State: RELAXED'
-            : `State: ${dominant.toUpperCase()}`;
-
-        if (dominant !== 'none') {
-          const cnt = lastGroups.filter(x => x === dominant).length;
-          if (cnt >= 3) {
-            freezeGroup = dominant;
-            freezeUntil = now + getFreezeDurationMs();
-            statusEl.textContent = 'DO_MASTER_Grip_This?';
-          }
-        }
-
-        latestHudLine =
-          `detectFPS=${detectFps} drawFPS=${drawFps} dominant=${dominant}`;
-
-      } catch (e) {
-        console.error(e);
-        latestHudLine = 'Detection error';
-      }
-
-      setTimeout(loop, 200);
-    };
-
-    loop();
-  }
-
-  // ======== Camera ========
+  /* ========= Camera ========= */
   async function startCamera() {
+    if (stream) return;
+
+    statusEl.textContent = 'Starting camera...';
+
     try {
-      await loadModelIfNeeded();
-
-      if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-        stream = null;
-      }
-
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
         audio: false
       });
 
       video.srcObject = stream;
+      await video.play();
 
-      video.onloadedmetadata = async () => {
-        await video.play();
+      resizeOverlay();
 
-        if (!drawRunning) {
-          drawRunning = true;
-          drawLoop();
-        }
-        if (!detectRunning) {
-          detectRunning = true;
-          runDetectionLoop();
-        }
-
-        statusEl.textContent = 'Camera started.';
-        latestHudLine = 'Camera running';
-      };
+      statusEl.textContent = 'Camera started.';
+      logHUD('Camera OK');
 
     } catch (e) {
       console.error(e);
-      statusEl.textContent = 'Camera error';
+      statusEl.textContent = 'Camera failed.';
+      logHUD('Camera ERROR');
     }
   }
 
-  // ======== Buttons ========
-  function demoFreeze(ms=2000) {
-    demoUntil = performance.now() + ms;
+  startCamBtn.addEventListener('click', async () => {
+    await startCamera();
+    await loadModel(); // ← ここで初めてモデルロード
+  });
+
+  /* ========= Draw Loop ========= */
+  function drawVideoToOverlay() {
+    requestAnimationFrame(drawVideoToOverlay);
+
+    if (!video.videoWidth || video.readyState < 2) return;
+
+    resizeOverlay();
+
+    overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+
+    // NOTE:
+    // video 自体は <video> 要素で表示
+    // overlay は bbox / HUD 用（ここでは空）
   }
 
-  simEggBtn.addEventListener('click', () => {
-    activateHand('egg');
-    demoFreeze();
-  });
-  simPenBtn.addEventListener('click', () => {
-    activateHand('pen');
-    demoFreeze();
-  });
-  simPhoneBtn.addEventListener('click', () => {
-    activateHand('phone');
-    demoFreeze();
-  });
-  simKeyBtn.addEventListener('click', () => {
-    activateHand('key');
-    demoFreeze();
-  });
-  simSaluteBtn.addEventListener('click', () => {
-    activateHand('salute');
-    demoFreeze();
+  requestAnimationFrame(drawVideoToOverlay);
+
+  /* ========= Visibility ========= */
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      logHUD('tab hidden');
+    } else {
+      logHUD('tab visible');
+    }
   });
 
-  lockBtn.addEventListener('click', () => {
-    lockActive = true;
-    statusEl.textContent = 'Locked';
-  });
+/* ===== PART 03 / 16 : END ===== */
+ /* ===== PART 04 / 16 : START ===== */
 
-  miniOpenBtn.addEventListener('click', () => {
-    lockActive = false;
-    statusEl.textContent = 'Mini-Open';
-  });
+  /* ========= COCO-SSD ========= */
+  let cocoModel = null;
+  let detectRunning = false;
+  let lastPredictions = [];
 
-  relaxBtn.addEventListener('click', () => {
-    lockActive = false;
-    freezeUntil = 0;
-    lastGroups = [];
-    activateHand('none');
-    statusEl.textContent = 'Full Relax';
-  });
+  async function loadModel() {
+    if (cocoModel) return;
 
-  startCamBtn.addEventListener('click', startCamera);
+    statusEl.textContent = 'Loading COCO-SSD...';
+    logHUD('Loading COCO-SSD');
 
-})();
-</script>
-<script>
-/* ===== Hand PNG Switcher ===== */
-const handImgs = {
-  none:   document.getElementById('img-open'),
-  open:   document.getElementById('img-open'),
-  phone:  document.getElementById('img-phone'),
-  pen:    document.getElementById('img-pen'),
-  key:    document.getElementById('img-key'),
-  egg:    document.getElementById('img-egg'),
-  salute: document.getElementById('img-salute')
-};
-
-function showHandImage(group) {
-  Object.values(handImgs).forEach(img => img.classList.remove('active'));
-  const target = handImgs[group] || handImgs.open;
-  target.classList.add('active');
-}
-
-/* hook existing logic */
-const _origActivateHand = window.activateHand;
-window.activateHand = function(group) {
-  try { showHandImage(group); } catch(e){}
-  if (typeof _origActivateHand === 'function') {
-    _origActivateHand(group);
+    try {
+      cocoModel = await cocoSsd.load();
+      statusEl.textContent = 'COCO-SSD loaded.';
+      logHUD('COCO-SSD OK');
+    } catch (e) {
+      console.error(e);
+      statusEl.textContent = 'COCO-SSD load failed.';
+      logHUD('COCO-SSD ERROR');
+    }
   }
-};
-</script>
+
+  /* ========= Detection Loop ========= */
+  async function runDetectionLoop() {
+    if (detectRunning) return;
+    detectRunning = true;
+
+    async function loop() {
+      if (!detectRunning) return;
+
+      if (!cocoModel || !video.videoWidth || video.readyState < 2) {
+        requestAnimationFrame(loop);
+        return;
+      }
+
+      try {
+        const predictions = await cocoModel.detect(video);
+        lastPredictions = predictions;
+
+        hudLine.textContent =
+          `COCO running | objects=${predictions.length}`;
+
+      } catch (e) {
+        console.error(e);
+        logHUD('detect error');
+      }
+
+      setTimeout(loop, 200); // 約5Hz
+    }
+
+    loop();
+  }
+
+  /* ========= Start Detection ========= */
+  startDetectBtn.addEventListener('click', async () => {
+    if (!cocoModel) {
+      await loadModel();
+    }
+    runDetectionLoop();
+    statusEl.textContent = 'Detection started.';
+    logHUD('Detection ON');
+  });
+
+  stopDetectBtn.addEventListener('click', () => {
+    detectRunning = false;
+    statusEl.textContent = 'Detection stopped.';
+    logHUD('Detection OFF');
+  });
+
+/* ===== PART 04 / 16 : END ===== */
+ /* ===== PART 05 / 16 : START ===== */
+
+  /* ========= Overlay Canvas ========= */
+  const overlay = document.getElementById('overlay');
+  const octx = overlay.getContext('2d');
+
+  function resizeOverlay() {
+    if (!video.videoWidth) return;
+    overlay.width  = video.videoWidth;
+    overlay.height = video.videoHeight;
+  }
+
+  window.addEventListener('resize', resizeOverlay);
+  video.addEventListener('loadedmetadata', resizeOverlay);
+
+  /* ========= Draw Loop ========= */
+  let drawRunning = false;
+
+  function startDrawLoop() {
+    if (drawRunning) return;
+    drawRunning = true;
+
+    function draw() {
+      if (!drawRunning) return;
+
+      octx.clearRect(0, 0, overlay.width, overlay.height);
+
+      if (lastPredictions && lastPredictions.length > 0) {
+        lastPredictions.forEach(p => {
+          const [x, y, w, h] = p.bbox;
+
+          // box
+          octx.strokeStyle = 'rgba(0,255,255,0.9)';
+          octx.lineWidth = 3;
+          octx.strokeRect(x, y, w, h);
+
+          // label
+          octx.fillStyle = 'rgba(0,0,0,0.6)';
+          octx.fillRect(x, y - 18, octx.measureText(p.class).width + 10, 18);
+
+          octx.fillStyle = '#00ffff';
+          octx.font = '14px monospace';
+          octx.fillText(
+            `${p.class} ${(p.score * 100).toFixed(0)}%`,
+            x + 4,
+            y - 4
+          );
+        });
+
+        hudLine.textContent =
+          `COCO drawing | boxes=${lastPredictions.length}`;
+      } else {
+        hudLine.textContent =
+          'COCO drawing | no objects';
+      }
+
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+  }
+
+  function stopDrawLoop() {
+    drawRunning = false;
+    octx.clearRect(0, 0, overlay.width, overlay.height);
+  }
+
+  /* ========= Hook ========= */
+  startDetectBtn.addEventListener('click', () => {
+    startDrawLoop();
+    logHUD('Draw loop ON');
+  });
+
+  stopDetectBtn.addEventListener('click', () => {
+    stopDrawLoop();
+    logHUD('Draw loop OFF');
+  });
+
+/* ===== PART 05 / 16 : END ===== */
+ /* ===== PART 06 / 16 : START ===== */
+
+  /* ========= Class Mapping ========= */
+  const COCO_GROUP_MAP = {
+    phone: ['cell phone'],
+    pen:   ['pen'],
+    key:   ['key'],
+    egg:   ['egg', 'orange'], // egg代替（実験）
+    salute: ['person']
+  };
+
+  function mapCocoClassToGroup(cocoClass) {
+    for (const g in COCO_GROUP_MAP) {
+      if (COCO_GROUP_MAP[g].includes(cocoClass)) return g;
+    }
+    return 'ignore';
+  }
+
+  /* ========= Dominant Detection ========= */
+  let lastDominantGroup = 'none';
+  let lastDominantScore = 0;
+
+  function computeDominant(predictions) {
+    let best = { group: 'none', score: 0 };
+
+    predictions.forEach(p => {
+      const group = mapCocoClassToGroup(p.class);
+      if (group === 'ignore') return;
+
+      if (p.score > best.score) {
+        best.group = group;
+        best.score = p.score;
+      }
+    });
+
+    return best;
+  }
+
+  /* ========= Integrate ========= */
+  function updateDominantFromCOCO() {
+    if (!lastPredictions || lastPredictions.length === 0) {
+      lastDominantGroup = 'none';
+      lastDominantScore = 0;
+      return;
+    }
+
+    const d = computeDominant(lastPredictions);
+    lastDominantGroup = d.group;
+    lastDominantScore = d.score;
+
+    hudLine.textContent =
+      `COCO dominant=${lastDominantGroup} ${(lastDominantScore*100).toFixed(0)}%`;
+  }
+
+  /* ========= Hook into draw loop ========= */
+  const _origDraw = startDrawLoop;
+  startDrawLoop = function () {
+    _origDraw();
+    setInterval(() => {
+      updateDominantFromCOCO();
+    }, 250);
+  };
+
+/* ===== PART 06 / 16 : END ===== */
+ /* ===== PART 07 / 16 : START ===== */
+
+  /* ========= Hand PNG (RELAX only) ========= */
+
+  const handLayer = document.createElement('img');
+  handLayer.id = 'handLayer';
+  handLayer.src = 'hand_open.png';   // ← 確定ファイル名
+  handLayer.style.position = 'absolute';
+  handLayer.style.inset = '0';
+  handLayer.style.width = '100%';
+  handLayer.style.height = '100%';
+  handLayer.style.objectFit = 'contain';
+  handLayer.style.pointerEvents = 'none';
+  handLayer.style.opacity = '0.35';   // ← 半透明（さらに薄く）
+  handLayer.style.zIndex = '20';       // video(1) canvas(2) svg(3) より上
+
+  const videoWrap = document.getElementById('videoWrapper');
+  videoWrap.appendChild(handLayer);
+
+  /* ========= Update Hand by Dominant ========= */
+  function updateHandImage() {
+    if (!handLayer) return;
+
+    if (lastDominantGroup === 'none') {
+      handLayer.src = 'hand_open.png';
+      handLayer.style.display = 'block';
+    } else {
+      // まだ他の絵は出さない（次PART）
+      handLayer.style.display = 'none';
+    }
+  }
+
+  /* ========= Hook ========= */
+  setInterval(() => {
+    updateHandImage();
+  }, 200);
+
+/* ===== PART 07 / 16 : END ===== */
